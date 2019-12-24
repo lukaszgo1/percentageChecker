@@ -56,14 +56,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		current, total = self._prepare(api.getFocusObject())
 		if not any((current, total)):
 			return
-		lineCount = (sum(1 for t in total.getTextInChunks("line"))+1)
+		lineCount = sum(1 for t in total.getTextInChunks("line"))+1
 		fullText = total.copy()
 		total.setEndPoint(current, "endToStart")
-		lineCountBeforeCaret = (sum(1 for t in total.getTextInChunks("line"))+1)
+		lineCountBeforeCaret = sum(1 for t in total.getTextInChunks("line"))+1
 		jumpToLineDialog = wx.TextEntryDialog(
 			gui.mainFrame,
 			#Translators: A message in the dialog allowing to jump to the given line number.
-			_("You are here : {0} You can't go further than : {1}").format(int(lineCountBeforeCaret), int(lineCount)),
+			_("You are here: {0} You can't go further than: {1}").format(lineCountBeforeCaret, lineCount),
 			# Translators: Title of the dialog
 			_("Jump to line")
 		)
@@ -117,9 +117,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# Translators: Reported when user asks about position in a list.
 				# The full message is as follows:
 				# 25 percent, item 1 of 4
-				message(_("{0} percent, item {1} of {2}").format(int((currPos/totalCount*100)), int(currPos), int(totalCount)))
+				message(_("{0} percent, item {1} of {2}").format(int(currPos/totalCount*100), int(currPos), int(totalCount)))
 			if callerName =='script_reportOrJumpTo_beep':
-				beep((currPos/totalCount*3000), 100)
+				beep(currPos/totalCount*3000, 100)
 			return
 		current, total = self._prepare(obj)
 		if not any((current, total)):
@@ -157,9 +157,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: Presented to the user when command to report percentage in the current text is pressed.
 			# Full message is as follows:
 			# 80 percent word 486 of 580
-			message(_("{0} percent word {2} of {1}").format(int((charsCountBeforeCaret/totalCharsCount*100)), totalWordsCount, wordCountBeforeCaret))
+			message(_("{0} percent word {2} of {1}").format(int(charsCountBeforeCaret/totalCharsCount*100), totalWordsCount, wordCountBeforeCaret))
 		if callerName == 'script_reportOrJumpTo_beep':
-			beep((charsCountBeforeCaret/totalCharsCount*3000), 100)
+			beep(charsCountBeforeCaret/totalCharsCount*3000, 100)
 		return
 
 	def _prepare(self, obj):
