@@ -19,7 +19,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description" : _("""read percentage of current text using shift NVDA p"""),
 	# version
-	"addon_version" : "1.3",
+	"addon_version" : "1.3-dev",
 	# Author(s)
 	"addon_author" : u"Oriol Gómez <ogomez.s92@gmail.com>, Łukasz Golonka <lukasz.golonka@mailbox.org>",
 	# URL for the add-on documentation support
