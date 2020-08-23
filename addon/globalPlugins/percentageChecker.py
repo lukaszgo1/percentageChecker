@@ -19,7 +19,89 @@ import gui
 from globalCommands import SCRCAT_SYSTEMCARET
 import sys
 import review
+import core
 addonHandler.initTranslation()
+
+
+class jumpToDialog(wx.Dialog):
+
+	_instance = None
+
+	def __new__(cls, *args, **kwargs):
+		if cls._instance is None:
+			return super(jumpToDialog, cls).__new__(cls, *args, **kwargs)
+		return cls._instance
+
+	def __init__(self, title, fieldLabel, fieldMin, fieldMax, fieldCurrent, ti, movingUnit):
+		if self.__class__._instance is not None:
+			return
+		self.__class__._instance = self
+		super(jumpToDialog, self).__init__(parent=gui.mainFrame, title=title)
+		self.ti = ti
+		self.movingUnit = movingUnit
+		mainSizer = wx.BoxSizer(wx.VERTICAL)
+		sHelper = gui.guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
+		self.entryField = sHelper.addLabeledControl(
+			fieldLabel,
+			gui.nvdaControls.SelectOnFocusSpinCtrl,
+			min=fieldMin,
+			max=fieldMax,
+			initial=fieldCurrent,
+			name=fieldLabel
+		)
+		sHelper.addDialogDismissButtons(self.CreateButtonSizer(wx.OK | wx.CANCEL))
+		mainSizer.Add(sHelper.sizer, border=gui.guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
+		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
+		self.Bind(wx.EVT_BUTTON, self.onClose, id=wx.ID_CANCEL)
+		mainSizer.Fit(self)
+		self.SetSizer(mainSizer)
+		self.CentreOnScreen()
+		self.entryField.SetFocus()
+
+	def onOk(self, evt):
+		core.callLater(100, self._jumpTo, posToJump=self.getValue())
+		self.Destroy()
+		self.__class__._instance = None
+
+	def onClose(self, evt):
+		self.Destroy()
+		self.__class__._instance = None
+
+	def getValue(self):
+		return self.entryField.GetValue()
+
+	def __del__(self):
+		self.__class__._instance = None
+
+	def _jumpTo(self, posToJump):
+		if self.ti.obj is None:
+			# When the object for which the textInfo passed to the dialog loses focus
+			# it's no longer valid therefore jumping, even after dialog closes, fails.
+			# Since creating the TI from scratch is vastefull use this work around.
+			self.ti.obj = api.getFocusObject()
+		try:
+			speech.cancelSpeech()
+			self.ti.move(self.movingUnit, int(posToJump), "start")
+			self.ti.updateCaret()
+			self.ti.expand(textInfos.UNIT_LINE)
+			review.handleCaretMove(self.ti)
+			speech.speakTextInfo(self.ti, unit=textInfos.UNIT_LINE, reason=controlTypes.REASON_CARET)
+		except NotImplementedError:
+			pass
+
+	@classmethod
+	def run(cls, *args, **kwargs):
+		gui.mainFrame.prePopup()
+		d = cls(*args, **kwargs)
+		if d:
+			d.Show()
+		gui.mainFrame.postPopup()
+
+
+class jumpToPercentDialog(jumpToDialog):
+
+	def getValue(self):
+		return float(super(jumpToPercentDialog, self).getValue()) * (float(len(self.ti.text)) - 1) / 100
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -58,16 +140,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		current, total = self._prepare(api.getFocusObject())
 		if not any((current, total)):
 			return
-		lineCount = sum(1 for t in total.getTextInChunks("line"))+1
+		lineCount = len(tuple(total.getTextInChunks(textInfos.UNIT_LINE)))
 		fullText = total.copy()
 		total.setEndPoint(current, "endToStart")
-		lineCountBeforeCaret = sum(1 for t in total.getTextInChunks("line"))+1
-		jumpToLineDialog = wx.TextEntryDialog(
-			gui.mainFrame,
-			#Translators: A message in the dialog allowing to jump to the given line number.
-			_("You are here: {0} You can't go further than: {1}").format(lineCountBeforeCaret, lineCount),
-			# Translators: Title of the dialog
-			_("Jump to line")
+		lineCountBeforeCaret = len(tuple(total.getTextInChunks(textInfos.UNIT_LINE)))
+		jumpToDialog.run(
+			# Translators: Title of the dialog.
+			title=_("Jump to line"),
+			# Translators: A message in the dialog allowing to jump to the given line number.
+			fieldLabel=_("Enter line number (from 1 to {})").format(lineCount),
+			fieldMin=1,
+			fieldMax=lineCount,
+			fieldCurrent=lineCountBeforeCaret,
+			ti=fullText,
+			movingUnit=textInfos.UNIT_LINE
 		)
 		def callback(result):
 			if result == wx.ID_OK:
@@ -83,7 +169,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					)
 					return
 				wx.CallLater(100, self._jumpTo, posToJump = (int(lineToJumpTo)-1), info = fullText, movingUnit = textInfos.UNIT_LINE)
-		gui.runScriptModalDialog(jumpToLineDialog, callback)
 		return
 
 	def reportOrJumpTo(self, showJumpToDialog):
@@ -127,13 +212,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not any((current, total)):
 			return
 		totalCharsCount = float(len(total.text))
+		totalWordsCount = len(total.text.split())
+		totalToPass = total.copy()
+		total.setEndPoint(current, "endToStart")
+		wordCountBeforeCaret = len(total.text.split())
+		charsCountBeforeCaret = float(len(total.text))
+		posInPercents = int(charsCountBeforeCaret / totalCharsCount * 100)
 		if showJumpToDialog:
-			jumpToPercentDialog = wx.TextEntryDialog(
-				gui.mainFrame,
-				#Translators: A message in the dialog allowing to jump to the given percentage.
-				_("Enter a percentage to jump to"),
-				# Translators: Title of the dialog
-				_("Jump to percent")
+			jumpToPercentDialog.run(
+				# Translators: Title of the dialog.
+				title=_("Jump to percent"),
+				# Translators: A message in the dialog allowing to jump to the given percentage.
+				fieldLabel=_("Enter a percentage to jump to"),
+				fieldMin=0,
+				fieldMax=100,
+				fieldCurrent=posInPercents,
+				ti=totalToPass,
+				movingUnit=textInfos.UNIT_CHARACTER
 			)
 			def callback(result):
 				if result == wx.ID_OK:
@@ -149,17 +244,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 						)
 						return
 					wx.CallLater(100, self._jumpTo, posToJump=float(percentToJumpTo)*(totalCharsCount-1)/100, info = total, movingUnit = textInfos.UNIT_CHARACTER)
-			gui.runScriptModalDialog(jumpToPercentDialog, callback)
 			return
-		totalWordsCount = len(total.text.split())
-		total.setEndPoint(current, "endToStart")
-		wordCountBeforeCaret = len(total.text.split())
-		charsCountBeforeCaret = float(len(total.text))
 		if callerName == 'script_reportOrJumpTo_speech':
 			# Translators: Presented to the user when command to report percentage in the current text is pressed.
 			# Full message is as follows:
 			# 80 percent word 486 of 580
-			message(_("{0} percent word {2} of {1}").format(int(charsCountBeforeCaret/totalCharsCount*100), totalWordsCount, wordCountBeforeCaret))
+			message(_("{0} percent word {2} of {1}").format(posInPercents, totalWordsCount, wordCountBeforeCaret))
 		if callerName == 'script_reportOrJumpTo_beep':
 			beep(charsCountBeforeCaret/totalCharsCount*3000, 100)
 		return
@@ -184,18 +274,3 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			message(_("No text"))
 			return None, None
 		return current, total
-
-	def _jumpTo(self, posToJump, info, movingUnit):
-		if info.obj is None:
-			# For whatever reason when textInfo is passed to this function via wx.CallLater its obj attribute is set to None in some cases.
-			# As I do not understand why use this work around.
-			info.obj = api.getFocusObject()
-		try:
-			speech.cancelSpeech()
-			info.move(movingUnit, int(posToJump), "start")
-			info.updateCaret()
-			info.expand(textInfos.UNIT_LINE)
-			review.handleCaretMove(info)
-			speech.speakTextInfo(info, unit=textInfos.UNIT_LINE, reason=controlTypes.REASON_CARET)
-		except NotImplementedError:
-			pass
