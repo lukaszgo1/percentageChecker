@@ -106,8 +106,6 @@ class jumpToPercentDialog(jumpToDialog):
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
-	usePositionInfo = True
-
 	@scriptHandler.script(
 		# Translators: Describes keyboard command which, depending of how many times is pressed, either reports current percentage in speech or displays a dialog allowing to jump to the particular percentage in the text. 
 		description=_("Press this command once to have percentage in the text or on the list reported in speech. Press it twice to display a dialog allowing you to jump to the given percentage in the currently focused text field"),
@@ -178,7 +176,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if showJumpToDialog:
 				# Jumping when focused on a list is not supported.
 				return
-			if hasattr(obj, 'positionInfo') and obj.positionInfo and self.usePositionInfo == True:
+			if hasattr(obj, 'positionInfo') and obj.positionInfo:
 				# Using positionInfo is very fast, so prefer this.
 				currPos = float(obj.positionInfo['indexInGroup'])
 				totalCount = float(obj.positionInfo['similarItemsInGroup'])
