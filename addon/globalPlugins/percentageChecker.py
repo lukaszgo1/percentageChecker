@@ -1,7 +1,8 @@
 # -*- coding: UTF-8 -*-
 
 # Percentage checker
-#Copyright (C) 2012-2019 Original idea and code by Oriol Gómez <ogomez.s92@gmail.com>, improvements and maintenance by Łukasz Golonka <lukasz.golonka@mailbox.org>
+# Copyright (C) 2012-2020 Original idea and code by Oriol Gómez <ogomez.s92@gmail.com>,
+# improvements and maintenance by Łukasz Golonka <lukasz.golonka@mailbox.org>
 # Released under GPL 2
 
 import globalPluginHandler
@@ -12,13 +13,14 @@ import textInfos
 import speech
 from ui import message
 import addonHandler
-addonHandler.initTranslation()
 import scriptHandler
 import wx
 import gui
 from globalCommands import SCRCAT_SYSTEMCARET
 import sys
 import review
+addonHandler.initTranslation()
+
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
