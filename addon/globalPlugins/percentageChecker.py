@@ -114,34 +114,49 @@ class jumpToPercentDialog(jumpToDialog):
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
-		# Translators: Describes keyboard command which, depending of how many times is pressed, either reports current percentage in speech or displays a dialog allowing to jump to the particular percentage in the text. 
-		description=_("Press this command once to have percentage in the text or on the list reported in speech. Press it twice to display a dialog allowing you to jump to the given percentage in the currently focused text field"),
-		gesture = "kb:NVDA+shift+p",
-		category = SCRCAT_SYSTEMCARET,
+		description=_(
+			# Translators: Describes keyboard command which, depending of how many times is pressed,
+			# either reports current percentage in speech
+			# or displays a dialog allowing to jump to the particular percentage in the text.
+			"Press this command once to have percentage in the text or on the list reported in speech."
+			" Press it twice to display a dialog"
+			" allowing you to jump to the given percentage in the currently focused text field"
+		),
+		gesture="kb:NVDA+shift+p",
+		category=SCRCAT_SYSTEMCARET,
 	)
 	def script_reportOrJumpTo_speech(self, gesture):
 		if scriptHandler.getLastScriptRepeatCount() <= 1:
-			self.reportOrJumpTo(showJumpToDialog = bool(scriptHandler.getLastScriptRepeatCount()==1))
+			self.reportOrJumpTo(showJumpToDialog=bool(scriptHandler.getLastScriptRepeatCount() == 1))
 		return
 
 	@scriptHandler.script(
-		# Translators: Describes keyboard command which, depending of how many times is pressed, either reports current percentage as a beep or displays a dialog allowing to jump to the particular percentage in the text. 
-		description=_("Press this command once to have percentage in the text or on the list reported as a beep. Press it twice to display a dialog allowing you to jump to the given percentage in the currently focused text field"),
-		gesture = "kb:NVDA+Alt+p",
-		category = SCRCAT_SYSTEMCARET,
+		description=_(
+			# Translators: Describes keyboard command which, depending of how many times is pressed,
+			# either reports current percentage as a beep
+			# or displays a dialog allowing to jump to the particular percentage in the text.
+			"Press this command once to have percentage in the text or on the list reported as a beep."
+			" Press it twice to display a dialog"
+			" allowing you to jump to the given percentage in the currently focused text field"
+		),
+		gesture="kb:NVDA+Alt+p",
+		category=SCRCAT_SYSTEMCARET,
 	)
 	def script_reportOrJumpTo_beep(self, gesture):
 		if scriptHandler.getLastScriptRepeatCount() <= 1:
-			self.reportOrJumpTo(showJumpToDialog = bool(scriptHandler.getLastScriptRepeatCount()==1))
+			self.reportOrJumpTo(showJumpToDialog=bool(scriptHandler.getLastScriptRepeatCount() == 1))
 		return
 
 	@scriptHandler.script(
-		# Translators: Describes keyboard command which displays a dialog allowing to jump to the particular line in the text. 
-		description=_("displays a dialog allowing you to jump to the given line number in the currently focused text field"),
-		gesture = "kb:NVDA+shift+j",
-		category = SCRCAT_SYSTEMCARET,
+		description=_(
+			# Translators: Describes keyboard command which displays a dialog
+			# 		allowing to jump to the given line number in the text.
+			"displays a dialog allowing you to jump to the given line number in the currently focused text field"
+		),
+		gesture="kb:NVDA+shift+j",
+		category=SCRCAT_SYSTEMCARET,
 	)
-	def script_jumpToLine (self, gesture):
+	def script_jumpToLine(self, gesture):
 		try:
 			current, total = self._prepare()
 		except RuntimeError:
