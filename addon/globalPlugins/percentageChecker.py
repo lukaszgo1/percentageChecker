@@ -6,7 +6,6 @@
 # Released under GPL 2
 
 import globalPluginHandler
-from tones import beep
 import controlTypes
 import api
 import textInfos
@@ -21,6 +20,14 @@ import sys
 import review
 import core
 addonHandler.initTranslation()
+
+
+def beepPercent(percent):
+	import tones
+	import config
+	tones.beep(
+		config.conf["presentation"]["progressBarUpdates"]["beepMinHZ"] * 2 ** (float(percent) / 25.0), 40
+	)
 
 
 class jumpToDialog(wx.Dialog):
@@ -135,8 +142,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category = SCRCAT_SYSTEMCARET,
 	)
 	def script_jumpToLine (self, gesture):
-		current, total = self._prepare(api.getFocusObject())
-		if not any((current, total)):
+		try:
+			current, total = self._prepare()
+		except RuntimeError:
 			return
 		lineCount = len(tuple(total.getTextInChunks(textInfos.UNIT_LINE)))
 		fullText = total.copy()
@@ -198,16 +206,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				currPos = float(objList.index(obj))
 				if currPos == 0:
 					currPos += 1
+			posInPercents = int(currPos / totalCount * 100)
 			if callerName == 'script_reportOrJumpTo_speech':
 				# Translators: Reported when user asks about position in a list.
 				# The full message is as follows:
 				# 25 percent, item 1 of 4
-				message(_("{0} percent, item {1} of {2}").format(int(currPos/totalCount*100), int(currPos), int(totalCount)))
+				message(_("{0} percent, item {1} of {2}").format(posInPercents, int(currPos), int(totalCount)))
 			if callerName =='script_reportOrJumpTo_beep':
-				beep(currPos/totalCount*3000, 100)
+				beepPercent(posInPercents)
 			return
-		current, total = self._prepare(obj)
-		if not any((current, total)):
+		try:
+			current, total = self._prepare()
+		except RuntimeError:
 			return
 		totalCharsCount = float(len(total.text))
 		totalWordsCount = len(total.text.split())
@@ -249,26 +259,27 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# 80 percent word 486 of 580
 			message(_("{0} percent word {2} of {1}").format(posInPercents, totalWordsCount, wordCountBeforeCaret))
 		if callerName == 'script_reportOrJumpTo_beep':
-			beep(charsCountBeforeCaret/totalCharsCount*3000, 100)
+			beepPercent(posInPercents)
 		return
 
-	def _prepare(self, obj):
+	@staticmethod
+	def _prepare():
+		obj = api.getFocusObject()
 		treeInterceptor = obj.treeInterceptor
 		if hasattr(treeInterceptor, 'TextInfo') and not treeInterceptor.passThrough:
 			obj = treeInterceptor
-		current = total = None
 		try:
 			total = obj.makeTextInfo(textInfos.POSITION_ALL)
 		except (NotImplementedError, RuntimeError):
-			return current, total
+			raise RuntimeError("Invalid object")
 		try:
 			current = obj.makeTextInfo(textInfos.POSITION_CARET)
 		except (NotImplementedError, RuntimeError):
 			# Translators: Announced when there is no caret in the currently focused control.
 			message(_("Caret not found"))
-			return None, None
+			raise RuntimeError("Cannot work with object with no caret")
 		if total.text == '':
 			# Translators: Reported when the field with caret is empty
 			message(_("No text"))
-			return None, None
+			raise RuntimeError("Cannot work with empty field")
 		return current, total
