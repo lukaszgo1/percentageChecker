@@ -66,16 +66,13 @@ class jumpToDialog(wx.Dialog):
 		self.entryField.SetFocus()
 
 	def onOk(self, evt):
-		core.callLater(100, self._jumpTo, posToJump=self.getValue())
+		core.callLater(100, self._jumpTo, posToJump=self.entryField.GetValue())
 		self.Destroy()
 		self.__class__._instance = None
 
 	def onClose(self, evt):
 		self.Destroy()
 		self.__class__._instance = None
-
-	def getValue(self):
-		return self.entryField.GetValue()
 
 	def __del__(self):
 		self.__class__._instance = None
@@ -86,6 +83,8 @@ class jumpToDialog(wx.Dialog):
 			# it's no longer valid therefore jumping, even after dialog closes, fails.
 			# Since creating the TI from scratch is vastefull use this work around.
 			self.ti.obj = api.getFocusObject()
+		if hasattr(self, "getFixedValue"):
+			posToJump = self.getFixedValue(posToJump)
 		try:
 			speech.cancelSpeech()
 			self.ti.move(self.movingUnit, int(posToJump), "start")
@@ -107,8 +106,8 @@ class jumpToDialog(wx.Dialog):
 
 class jumpToPercentDialog(jumpToDialog):
 
-	def getValue(self):
-		return float(super(jumpToPercentDialog, self).getValue()) * (float(len(self.ti.text)) - 1) / 100
+	def getFixedValue(self, origValue):
+		return float(origValue) * (float(len(self.ti.text)) - 1) / 100
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
