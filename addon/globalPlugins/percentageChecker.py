@@ -91,7 +91,11 @@ class jumpToDialog(wx.Dialog):
 			self.ti.updateCaret()
 			self.ti.expand(textInfos.UNIT_LINE)
 			review.handleCaretMove(self.ti)
-			speech.speakTextInfo(self.ti, unit=textInfos.UNIT_LINE, reason=controlTypes.REASON_CARET)
+			speech.speakTextInfo(
+				self.ti,
+				unit=textInfos.UNIT_LINE,
+				reason=getattr(controlTypes, "REASON_CARET", None) or controlTypes.OutputReason.CARET
+			)
 		except NotImplementedError:
 			pass
 
