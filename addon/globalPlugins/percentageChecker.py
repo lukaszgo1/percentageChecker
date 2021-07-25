@@ -23,6 +23,39 @@ import core
 addonHandler.initTranslation()
 
 
+def _fixUpTI(ti):
+	if ti.obj is None:
+		# When the object for which the textInfo passed to the dialog loses focus
+		# it's no longer valid therefore jumping, even after dialog closes, fails.
+		# Since creating the TI from scratch is vastefull use this work around.
+		ti.obj = api.getFocusObject()
+	return ti
+
+
+def _jumpToPos(posToJump, ti, movingUnit):
+	ti = _fixUpTI(ti)
+	try:
+		speech.cancelSpeech()
+		ti.move(movingUnit, int(posToJump), "start")
+		ti.updateCaret()
+		ti.expand(textInfos.UNIT_LINE)
+		review.handleCaretMove(ti)
+		speech.speakTextInfo(
+			ti,
+			unit=textInfos.UNIT_LINE,
+			reason=getattr(controlTypes, "REASON_CARET", None) or controlTypes.OutputReason.CARET
+		)
+	except NotImplementedError:
+		pass
+
+
+def _jumpToPercent(posToJump, ti, movingUnit):
+	ti = _fixUpTI(ti)
+	return _jumpToPos(
+		float(posToJump) * (float(len(ti.text)) - 1) / 100, ti, movingUnit
+	)
+
+
 def beepPercent(percent):
 	import tones
 	import config
@@ -40,13 +73,14 @@ class jumpToDialog(wx.Dialog):
 			return super(jumpToDialog, cls).__new__(cls, *args, **kwargs)
 		return cls._instance
 
-	def __init__(self, title, fieldLabel, fieldMin, fieldMax, fieldCurrent, ti, movingUnit):
+	def __init__(self, title, fieldLabel, fieldMin, fieldMax, fieldCurrent, ti, movingUnit, jumpFunc):
 		if self.__class__._instance is not None:
 			return
 		self.__class__._instance = self
 		super(jumpToDialog, self).__init__(parent=gui.mainFrame, title=title)
 		self.ti = ti
 		self.movingUnit = movingUnit
+		self.jumpTo = jumpFunc
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		sHelper = gui.guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 		self.entryField = sHelper.addLabeledControl(
@@ -67,7 +101,9 @@ class jumpToDialog(wx.Dialog):
 		self.entryField.SetFocus()
 
 	def onOk(self, evt):
-		core.callLater(100, self._jumpTo, posToJump=self.entryField.GetValue())
+		core.callLater(
+			100, self.jumpTo, posToJump=self.entryField.GetValue(), ti=self.ti, movingUnit=self.movingUnit
+		)
 		self.Destroy()
 		self.__class__._instance = None
 
@@ -78,28 +114,6 @@ class jumpToDialog(wx.Dialog):
 	def __del__(self):
 		self.__class__._instance = None
 
-	def _jumpTo(self, posToJump):
-		if self.ti.obj is None:
-			# When the object for which the textInfo passed to the dialog loses focus
-			# it's no longer valid therefore jumping, even after dialog closes, fails.
-			# Since creating the TI from scratch is vastefull use this work around.
-			self.ti.obj = api.getFocusObject()
-		if hasattr(self, "getFixedValue"):
-			posToJump = self.getFixedValue(posToJump)
-		try:
-			speech.cancelSpeech()
-			self.ti.move(self.movingUnit, int(posToJump), "start")
-			self.ti.updateCaret()
-			self.ti.expand(textInfos.UNIT_LINE)
-			review.handleCaretMove(self.ti)
-			speech.speakTextInfo(
-				self.ti,
-				unit=textInfos.UNIT_LINE,
-				reason=getattr(controlTypes, "REASON_CARET", None) or controlTypes.OutputReason.CARET
-			)
-		except NotImplementedError:
-			pass
-
 	@classmethod
 	def run(cls, *args, **kwargs):
 		gui.mainFrame.prePopup()
@@ -107,12 +121,6 @@ class jumpToDialog(wx.Dialog):
 		if d:
 			d.Show()
 		gui.mainFrame.postPopup()
-
-
-class jumpToPercentDialog(jumpToDialog):
-
-	def getFixedValue(self, origValue):
-		return float(origValue) * (float(len(self.ti.text)) - 1) / 100
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -189,7 +197,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			fieldMax=lineCount,
 			fieldCurrent=lineCountBeforeCaret,
 			ti=fullText,
-			movingUnit=textInfos.UNIT_LINE
+			movingUnit=textInfos.UNIT_LINE,
+			jumpFunc=_jumpToPos
 		)
 		def callback(result):
 			if result == wx.ID_OK:
@@ -257,7 +266,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		charsCountBeforeCaret = float(len(total.text))
 		posInPercents = int(charsCountBeforeCaret / totalCharsCount * 100)
 		if showJumpToDialog:
-			jumpToPercentDialog.run(
+			jumpToDialog.run(
 				# Translators: Title of the dialog.
 				title=_("Jump to percent"),
 				# Translators: A message in the dialog allowing to jump to the given percentage.
@@ -266,7 +275,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				fieldMax=100,
 				fieldCurrent=posInPercents,
 				ti=totalToPass,
-				movingUnit=textInfos.UNIT_CHARACTER
+				movingUnit=textInfos.UNIT_CHARACTER,
+				jumpFunc=_jumpToPercent
 			)
 			def callback(result):
 				if result == wx.ID_OK:
