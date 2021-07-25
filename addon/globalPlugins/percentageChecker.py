@@ -16,6 +16,7 @@ import scriptHandler
 import wx
 import gui
 from globalCommands import SCRCAT_SYSTEMCARET
+import os
 import sys
 import review
 import core
@@ -160,16 +161,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=SCRCAT_SYSTEMCARET,
 	)
 	def script_jumpToLine(self, gesture):
-		import os
-		focusedObj = api.getFocusObject()
-		if(
-			focusedObj.role == controlTypes.ROLE_EDITABLETEXT
-			and getattr(focusedObj, "processID", None) == os.getpid()
-		):
-			# Jumping to line in NVDA's own edit fields causes a crash, disable the script.
-			# Translators: Message informing that the given script is not  supported in the focused control.
-			message(_("Not supported here."))
-			return
+		if not hasattr(textInfos, "TextInfoEndpoint"):
+			# Before NVDA 2021.1 collecting all lines from NVD'As edit controls causes a crash
+			focusedObj = api.getFocusObject()
+			if(
+				focusedObj.role == controlTypes.ROLE_EDITABLETEXT
+				and getattr(focusedObj, "processID", None) == os.getpid()
+			):
+				# Jumping to line in NVDA's own edit fields causes a crash, disable the script.
+				# Translators: Message informing that the given script is not  supported in the focused control.
+				message(_("Not supported here."))
+				return
 		try:
 			current, total = self._prepare()
 		except RuntimeError:
